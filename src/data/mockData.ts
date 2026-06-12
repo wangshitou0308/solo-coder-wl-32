@@ -39,10 +39,10 @@ export const mockContracts: Contract[] = [
 ];
 
 export const mockWarehouses: Warehouse[] = [
-  { id: 'w1', name: '一号库房（纸质档案）', code: 'WH-001', archiveType: 'paper', totalPositions: 2000, usedPositions: 1684, columns: 10, sidesPerColumn: 5, levelsPerSide: 8, status: 'warning' },
-  { id: 'w2', name: '二号库房（纸质档案）', code: 'WH-002', archiveType: 'paper', totalPositions: 2000, usedPositions: 892, columns: 10, sidesPerColumn: 5, levelsPerSide: 8, status: 'normal' },
-  { id: 'w3', name: '三号库房（胶片档案）', code: 'WH-003', archiveType: 'film', totalPositions: 1000, usedPositions: 645, columns: 8, sidesPerColumn: 5, levelsPerSide: 5, status: 'normal' },
-  { id: 'w4', name: '四号库房（综合）', code: 'WH-004', archiveType: 'mixed', totalPositions: 1500, usedPositions: 1487, columns: 10, sidesPerColumn: 5, levelsPerSide: 6, status: 'full' },
+  { id: 'w1', name: '一号库房（纸质档案）', code: 'WH-001', archiveType: 'paper', totalPositions: 400, usedPositions: 337, columns: 10, sidesPerColumn: 5, levelsPerSide: 8, status: 'warning' },
+  { id: 'w2', name: '二号库房（纸质档案）', code: 'WH-002', archiveType: 'paper', totalPositions: 400, usedPositions: 178, columns: 10, sidesPerColumn: 5, levelsPerSide: 8, status: 'normal' },
+  { id: 'w3', name: '三号库房（胶片档案）', code: 'WH-003', archiveType: 'film', totalPositions: 200, usedPositions: 129, columns: 8, sidesPerColumn: 5, levelsPerSide: 5, status: 'normal' },
+  { id: 'w4', name: '四号库房（综合）', code: 'WH-004', archiveType: 'mixed', totalPositions: 300, usedPositions: 297, columns: 10, sidesPerColumn: 5, levelsPerSide: 6, status: 'full' },
 ];
 
 function generateShelfPositions(): ShelfPosition[] {

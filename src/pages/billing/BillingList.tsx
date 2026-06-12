@@ -17,18 +17,25 @@ export default function BillingList() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  const totalStorage = bills.reduce((acc, b) => acc + b.storageFee, 0);
-  const totalAccess = bills.reduce((acc, b) => acc + b.accessFee, 0);
-  const totalAmount = bills.reduce((acc, b) => acc + b.totalAmount, 0);
-  const totalPaid = bills.filter((b) => b.status === 'paid').reduce((acc, b) => acc + b.totalAmount, 0);
-  const totalUnpaid = bills.filter((b) => b.status !== 'paid').reduce((acc, b) => acc + b.totalAmount, 0);
+  const filteredBills = bills.filter((b) => b.period === period);
+
+  const totalStorage = filteredBills.reduce((acc, b) => acc + b.storageFee, 0);
+  const totalAccess = filteredBills.reduce((acc, b) => acc + b.accessFee, 0);
+  const totalAmount = filteredBills.reduce((acc, b) => acc + b.totalAmount, 0);
+  const totalPaid = filteredBills.filter((b) => b.status === 'paid').reduce((acc, b) => acc + b.totalAmount, 0);
+  const totalUnpaid = filteredBills.filter((b) => b.status !== 'paid').reduce((acc, b) => acc + b.totalAmount, 0);
+
+  const handleGenerate = () => {
+    const before = bills.filter((b) => b.period === period).length;
+    generateBill(period);
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 font-serif">账单管理</h1>
-          <p className="text-sm text-slate-500 mt-1">共 {bills.length} 条账单记录</p>
+          <p className="text-sm text-slate-500 mt-1">{period} 账期共 {filteredBills.length} 条账单记录</p>
         </div>
         <div className="flex items-center gap-3">
           <input
@@ -37,7 +44,7 @@ export default function BillingList() {
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
           />
-          <button className="btn btn-secondary" onClick={() => generateBill(period)}>
+          <button className="btn btn-secondary" onClick={handleGenerate}>
             <Receipt className="w-4 h-4" />
             生成月度账单
           </button>
@@ -101,7 +108,14 @@ export default function BillingList() {
               </tr>
             </thead>
             <tbody>
-              {bills.map((b) => {
+              {filteredBills.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="table-td text-center py-8 text-slate-400 text-sm">
+                    当前账期暂无账单记录，点击右上角"生成月度账单"创建
+                  </td>
+                </tr>
+              )}
+              {filteredBills.map((b) => {
                 const Config = statusMap[b.status];
                 const Icon = Config.icon;
                 return (

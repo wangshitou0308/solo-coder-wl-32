@@ -282,8 +282,13 @@ export const useAppStore = create<AppState>()(
       },
 
       generateBill: (period) => {
-        const { contracts, archives, accessions } = get();
-        const newBills: Bill[] = contracts.map((c) => {
+        const { contracts, archives, accessions, bills } = get();
+        const existingContractIds = new Set(
+          bills.filter((b) => b.period === period).map((b) => b.contractId),
+        );
+        const remainingContracts = contracts.filter((c) => !existingContractIds.has(c.id));
+        if (remainingContracts.length === 0) return;
+        const newBills: Bill[] = remainingContracts.map((c) => {
           const custArchives = archives.filter((a) => a.customerId === c.customerId && a.status !== 'destroyed');
           const custAccessions = accessions.filter((a) => a.customerId === c.customerId);
           const storageFee = custArchives.length * c.feePerBox;
@@ -298,7 +303,7 @@ export const useAppStore = create<AppState>()(
             storageFee,
             accessFee,
             totalAmount: storageFee + accessFee,
-            status: 'pending',
+            status: 'issued',
             issueDate: todayStr(),
             dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
           };
@@ -337,6 +342,26 @@ export const useAppStore = create<AppState>()(
       },
 
     }),
-    { name: 'archive-management-storage', skipHydration: true },
+    {
+      name: 'archive-management-storage',
+      merge: (persistedState, currentState) => {
+        if (!persistedState || typeof persistedState !== 'object') return currentState;
+        const p = persistedState as Partial<AppState>;
+        return {
+          ...currentState,
+          ...p,
+          customers: p.customers && p.customers.length > 0 ? p.customers : currentState.customers,
+          contracts: p.contracts && p.contracts.length > 0 ? p.contracts : currentState.contracts,
+          warehouses: p.warehouses && p.warehouses.length > 0 ? p.warehouses : currentState.warehouses,
+          shelfPositions: p.shelfPositions && p.shelfPositions.length > 0 ? p.shelfPositions : currentState.shelfPositions,
+          archives: p.archives && p.archives.length > 0 ? p.archives : currentState.archives,
+          environmentRecords: p.environmentRecords && p.environmentRecords.length > 0 ? p.environmentRecords : currentState.environmentRecords,
+          accessions: p.accessions && p.accessions.length > 0 ? p.accessions : currentState.accessions,
+          inventoryTasks: p.inventoryTasks && p.inventoryTasks.length > 0 ? p.inventoryTasks : currentState.inventoryTasks,
+          destructions: p.destructions && p.destructions.length > 0 ? p.destructions : currentState.destructions,
+          bills: p.bills && p.bills.length > 0 ? p.bills : currentState.bills,
+        };
+      },
+    },
   ),
 );
