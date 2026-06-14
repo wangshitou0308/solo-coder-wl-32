@@ -42,6 +42,7 @@ export default function BillingList() {
   const [payAmount, setPayAmount] = useState('');
   const [payMethod, setPayMethod] = useState('bank_transfer');
   const [payRemark, setPayRemark] = useState('');
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({ show: false, message: '', type: 'success' });
 
   const filteredBills = bills.filter((b) => b.period === period);
 
@@ -52,7 +53,7 @@ export default function BillingList() {
   const totalManual = filteredBills.reduce((acc, b) => acc + (b.manualServiceFee || 0), 0);
   const totalAmount = filteredBills.reduce((acc, b) => acc + b.totalAmount, 0);
   const totalPaid = filteredBills.reduce((acc, b) => acc + (b.paidAmount || 0), 0);
-  const totalUnpaid = totalAmount - totalPaid;
+  const totalUnpaid = Math.max(0, totalAmount - totalPaid);
 
   const handleGenerate = () => {
     generateBill(period);
@@ -60,7 +61,7 @@ export default function BillingList() {
 
   const openPayModal = (bill: Bill) => {
     setSelectedBill(bill);
-    const unpaid = bill.totalAmount - (bill.paidAmount || 0);
+    const unpaid = Math.max(0, bill.totalAmount - (bill.paidAmount || 0));
     setPayAmount(unpaid.toString());
     setPayMethod('bank_transfer');
     setPayRemark('');
@@ -77,12 +78,25 @@ export default function BillingList() {
     setHistoryModalOpen(true);
   };
 
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  };
+
   const handlePaySubmit = () => {
     if (!selectedBill || !payAmount) return;
     const amount = parseFloat(payAmount);
-    if (isNaN(amount) || amount <= 0) return;
-    payBill(selectedBill.id, amount, payMethod, payRemark || undefined);
-    setPayModalOpen(false);
+    if (isNaN(amount) || amount <= 0) {
+      showToast('请输入有效的收款金额', 'error');
+      return;
+    }
+    const result = payBill(selectedBill.id, amount, payMethod, payRemark || undefined);
+    if (result.success) {
+      showToast(result.message, 'success');
+      setPayModalOpen(false);
+    } else {
+      showToast(result.message, 'error');
+    }
   };
 
   const billPaymentRecords = selectedBill
@@ -229,7 +243,7 @@ export default function BillingList() {
                 const Icon = statusIconMap[b.status];
                 const cls = statusClsMap[b.status];
                 const paidAmount = b.paidAmount || 0;
-                const unpaidAmount = b.totalAmount - paidAmount;
+                const unpaidAmount = Math.max(0, b.totalAmount - paidAmount);
                 return (
                   <tr key={b.id} className="hover:bg-slate-50/50">
                     <td className="table-td font-mono text-primary-600 font-medium">{b.billNo}</td>
@@ -302,7 +316,7 @@ export default function BillingList() {
               <div>
                 <div className="text-xs text-slate-500">待收款金额</div>
                 <div className="font-semibold text-red-600 mt-1">
-                  ¥{(selectedBill.totalAmount - (selectedBill.paidAmount || 0)).toLocaleString()}
+                  ¥{Math.max(0, selectedBill.totalAmount - (selectedBill.paidAmount || 0)).toLocaleString()}
                 </div>
               </div>
             </div>
@@ -453,7 +467,7 @@ export default function BillingList() {
               <div>
                 <div className="text-xs text-slate-500">待收款</div>
                 <div className="font-semibold text-red-600 mt-1">
-                  ¥{(selectedBill.totalAmount - (selectedBill.paidAmount || 0)).toLocaleString()}
+                  ¥{Math.max(0, selectedBill.totalAmount - (selectedBill.paidAmount || 0)).toLocaleString()}
                 </div>
               </div>
             </div>
@@ -506,6 +520,15 @@ export default function BillingList() {
           </div>
         )}
       </Modal>
+
+      {toast.show && (
+        <div className={`fixed top-4 right-4 z-[100] px-6 py-3 rounded-xl shadow-lg transform transition-all duration-300 ${toast.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'} text-white`}>
+          <div className="flex items-center gap-2">
+            {toast.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+            <span className="font-medium">{toast.message}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

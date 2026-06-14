@@ -22,7 +22,7 @@ export default function ReceivablesDashboard() {
   const currentMonthBills = bills.filter((b) => b.period === currentMonth);
   const monthlyReceivable = currentMonthBills.reduce((acc, b) => acc + b.totalAmount, 0);
   const monthlyPaid = currentMonthBills.reduce((acc, b) => acc + b.paidAmount, 0);
-  const monthlyUnpaid = monthlyReceivable - monthlyPaid;
+  const monthlyUnpaid = Math.max(0, monthlyReceivable - monthlyPaid);
 
   const overdueBills = bills.filter((b) => {
     if (b.status === 'paid') return false;
@@ -30,7 +30,7 @@ export default function ReceivablesDashboard() {
     return dueDate < today;
   });
 
-  const overdueAmount = overdueBills.reduce((acc, b) => acc + (b.totalAmount - b.paidAmount), 0);
+  const overdueAmount = overdueBills.reduce((acc, b) => acc + Math.max(0, b.totalAmount - b.paidAmount), 0);
 
   const customerDebt = useMemo(() => {
     const debtMap = new Map<string, { receivable: number; paid: number; unpaid: number }>();
@@ -41,7 +41,7 @@ export default function ReceivablesDashboard() {
       const data = debtMap.get(b.customerId)!;
       data.receivable += b.totalAmount;
       data.paid += b.paidAmount;
-      data.unpaid += b.totalAmount - b.paidAmount;
+      data.unpaid += Math.max(0, b.totalAmount - b.paidAmount);
     });
     return Array.from(debtMap.entries())
       .map(([customerId, data]) => {

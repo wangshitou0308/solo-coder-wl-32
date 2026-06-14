@@ -271,6 +271,11 @@ export interface Bill {
   items: BillItem[];
 }
 
+export interface PayBillResult {
+  success: boolean;
+  message: string;
+}
+
 export interface AppState {
   customers: Customer[];
   contracts: Contract[];
@@ -304,7 +309,7 @@ export interface AppState {
   executeDestruction: (id: string, executeDate: string) => void;
   addEnvironmentRecord: (data: Omit<EnvironmentRecord, 'id' | 'isAbnormal' | 'riskLevel'>) => void;
   generateBill: (period: string) => void;
-  payBill: (id: string, amount: number, paymentMethod: string, remark?: string) => void;
+  payBill: (id: string, amount: number, paymentMethod: string, remark?: string) => PayBillResult;
   moveArchive: (archiveId: string, newPositionId: string) => void;
   addFeeStandard: (data: Omit<FeeStandard, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateFeeStandard: (id: string, data: Partial<FeeStandard>) => void;
