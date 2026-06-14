@@ -10,6 +10,10 @@ import type {
   InventoryStatus,
   DestructionRecord,
   Bill,
+  FeeStandard,
+  PaymentRecord,
+  ExportTask,
+  BillItem,
 } from '@/types';
 
 const today = new Date();
@@ -30,12 +34,18 @@ export const mockCustomers: Customer[] = [
 ];
 
 export const mockContracts: Contract[] = [
-  { id: 'ct1', customerId: 'c1', customerName: '华东建设集团有限公司', contractNo: 'HT-2024-001', startDate: '2024-01-15', endDate: '2027-01-14', maxBoxes: 500, feePerBox: 12, feePerVolume: 80, feePerWeight: 5, accessFeePerTime: 50, status: 'active' },
-  { id: 'ct2', customerId: 'c2', customerName: '恒信医疗科技股份有限公司', contractNo: 'HT-2024-002', startDate: '2024-02-20', endDate: '2026-02-19', maxBoxes: 800, feePerBox: 10, feePerVolume: 75, feePerWeight: 4.5, accessFeePerTime: 45, status: 'active' },
-  { id: 'ct3', customerId: 'c3', customerName: '金鼎财务管理咨询有限公司', contractNo: 'HT-2024-003', startDate: '2024-03-10', endDate: '2025-03-09', maxBoxes: 300, feePerBox: 15, feePerVolume: 90, feePerWeight: 6, accessFeePerTime: 60, status: 'active' },
-  { id: 'ct4', customerId: 'c4', customerName: '远洋人力资源服务集团', contractNo: 'HT-2024-004', startDate: '2024-04-05', endDate: '2027-04-04', maxBoxes: 600, feePerBox: 11, feePerVolume: 85, feePerWeight: 5, accessFeePerTime: 55, status: 'active' },
-  { id: 'ct5', customerId: 'c5', customerName: '蓝图工程设计研究院', contractNo: 'HT-2024-005', startDate: '2024-05-18', endDate: '2026-05-17', maxBoxes: 400, feePerBox: 13, feePerVolume: 88, feePerWeight: 5.5, accessFeePerTime: 50, status: 'active' },
-  { id: 'ct6', customerId: 'c6', customerName: '信达律师事务所', contractNo: 'HT-2024-006', startDate: '2024-06-22', endDate: '2025-06-21', maxBoxes: 200, feePerBox: 14, feePerVolume: 92, feePerWeight: 5.8, accessFeePerTime: 65, status: 'active' },
+  { id: 'ct1', customerId: 'c1', customerName: '华东建设集团有限公司', contractNo: 'HT-2024-001', startDate: '2024-01-15', endDate: '2027-01-14', maxBoxes: 500, feePerBox: 12, feePerVolume: 80, feePerWeight: 5, accessFeePerTime: 50, overdueFeePerDay: 5, destructionFeePerItem: 200, manualServiceFeePerHour: 150, minimumChargePerMonth: 500, feeBasis: 'box', status: 'active' },
+  { id: 'ct2', customerId: 'c2', customerName: '恒信医疗科技股份有限公司', contractNo: 'HT-2024-002', startDate: '2024-02-20', endDate: '2026-02-19', maxBoxes: 800, feePerBox: 10, feePerVolume: 75, feePerWeight: 4.5, accessFeePerTime: 45, overdueFeePerDay: 4, destructionFeePerItem: 180, manualServiceFeePerHour: 120, minimumChargePerMonth: 800, feeBasis: 'box', status: 'active' },
+  { id: 'ct3', customerId: 'c3', customerName: '金鼎财务管理咨询有限公司', contractNo: 'HT-2024-003', startDate: '2024-03-10', endDate: '2025-03-09', maxBoxes: 300, feePerBox: 15, feePerVolume: 90, feePerWeight: 6, accessFeePerTime: 60, overdueFeePerDay: 6, destructionFeePerItem: 220, manualServiceFeePerHour: 180, minimumChargePerMonth: 400, feeBasis: 'volume', status: 'active' },
+  { id: 'ct4', customerId: 'c4', customerName: '远洋人力资源服务集团', contractNo: 'HT-2024-004', startDate: '2024-04-05', endDate: '2027-04-04', maxBoxes: 600, feePerBox: 11, feePerVolume: 85, feePerWeight: 5, accessFeePerTime: 55, overdueFeePerDay: 5, destructionFeePerItem: 190, manualServiceFeePerHour: 140, minimumChargePerMonth: 600, feeBasis: 'weight', status: 'active' },
+  { id: 'ct5', customerId: 'c5', customerName: '蓝图工程设计研究院', contractNo: 'HT-2024-005', startDate: '2024-05-18', endDate: '2026-05-17', maxBoxes: 400, feePerBox: 13, feePerVolume: 88, feePerWeight: 5.5, accessFeePerTime: 50, overdueFeePerDay: 5, destructionFeePerItem: 210, manualServiceFeePerHour: 160, minimumChargePerMonth: 450, feeBasis: 'box', status: 'active' },
+  { id: 'ct6', customerId: 'c6', customerName: '信达律师事务所', contractNo: 'HT-2024-006', startDate: '2024-06-22', endDate: '2025-06-21', maxBoxes: 200, feePerBox: 14, feePerVolume: 92, feePerWeight: 5.8, accessFeePerTime: 65, overdueFeePerDay: 6, destructionFeePerItem: 230, manualServiceFeePerHour: 170, minimumChargePerMonth: 350, feeBasis: 'box', status: 'active' },
+];
+
+export const mockFeeStandards: FeeStandard[] = [
+  { id: 'fs1', name: '通用标准', feeBasis: 'box', feePerBox: 12, feePerVolume: 80, feePerWeight: 5, accessFeePerTime: 50, overdueFeePerDay: 5, destructionFeePerItem: 200, manualServiceFeePerHour: 150, minimumChargePerMonth: 500, isDefault: true, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+  { id: 'fs2', name: '大客户优惠标准', customerId: 'c2', customerName: '恒信医疗科技股份有限公司', feeBasis: 'box', feePerBox: 10, feePerVolume: 75, feePerWeight: 4.5, accessFeePerTime: 45, overdueFeePerDay: 4, destructionFeePerItem: 180, manualServiceFeePerHour: 120, minimumChargePerMonth: 800, isDefault: false, createdAt: '2024-02-20', updatedAt: '2024-02-20' },
+  { id: 'fs3', name: 'HT-2024-003合同标准', customerId: 'c3', customerName: '金鼎财务管理咨询有限公司', contractId: 'ct3', contractNo: 'HT-2024-003', feeBasis: 'volume', feePerBox: 15, feePerVolume: 90, feePerWeight: 6, accessFeePerTime: 60, overdueFeePerDay: 6, destructionFeePerItem: 220, manualServiceFeePerHour: 180, minimumChargePerMonth: 400, isDefault: false, createdAt: '2024-03-10', updatedAt: '2024-03-10' },
 ];
 
 export const mockWarehouses: Warehouse[] = [
@@ -309,9 +319,136 @@ function buildBills(): Bill[] {
   const list: Bill[] = [];
   const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   mockContracts.forEach((c, i) => {
-    const storageFee = Math.floor((mockArchives.filter(a => a.customerId === c.customerId).length * c.feePerBox));
-    const accessFee = (mockAccessions.filter(a => a.customerId === c.customerId).length * c.accessFeePerTime);
-    const status: Bill['status'] = (['issued', 'paid', 'pending', 'overdue', 'paid', 'issued'] as const)[i];
+    const custArchives = mockArchives.filter(a => a.customerId === c.customerId && a.status !== 'destroyed');
+    const custAccessions = mockAccessions.filter(a => a.customerId === c.customerId);
+    const custDestructions = mockDestructions.filter(d => d.customerId === c.customerId && d.status === 'executed');
+    const overdues = mockAccessions.filter(a => a.customerId === c.customerId && (a.status === 'overdue' || (a.status !== 'returned' && a.status !== 'pending' && a.status !== 'rejected' && a.expectedReturnDate < fmt(today))));
+
+    const archiveCount = custArchives.length;
+    const totalVolume = custArchives.reduce((sum, a) => sum + a.volume, 0);
+    const totalWeight = custArchives.reduce((sum, a) => sum + a.weight, 0);
+
+    let storageFee = 0;
+    let storageUnit = '';
+    let storageQty = 0;
+    let storagePrice = 0;
+
+    if (c.feeBasis === 'box') {
+      storageQty = archiveCount;
+      storageUnit = '盒';
+      storagePrice = c.feePerBox;
+      storageFee = Math.floor(archiveCount * c.feePerBox);
+    } else if (c.feeBasis === 'volume') {
+      storageQty = +totalVolume.toFixed(2);
+      storageUnit = 'm³';
+      storagePrice = c.feePerVolume;
+      storageFee = Math.floor(totalVolume * c.feePerVolume);
+    } else {
+      storageQty = +totalWeight.toFixed(1);
+      storageUnit = 'kg';
+      storagePrice = c.feePerWeight;
+      storageFee = Math.floor(totalWeight * c.feePerWeight);
+    }
+
+    const accessFee = custAccessions.length * c.accessFeePerTime;
+    const overdueDays = overdues.reduce((sum, a) => {
+      const expected = new Date(a.expectedReturnDate);
+      const diff = Math.ceil((today.getTime() - expected.getTime()) / 86400000);
+      return sum + Math.max(0, diff);
+    }, 0);
+    const overdueFee = overdueDays * c.overdueFeePerDay;
+    const destructionFee = custDestructions.length * c.destructionFeePerItem;
+    const manualServiceFee = Math.floor(Math.random() * 3) * c.manualServiceFeePerHour;
+    const subtotal = storageFee + accessFee + overdueFee + destructionFee + manualServiceFee;
+    const totalAmount = Math.max(subtotal, c.minimumChargePerMonth);
+
+    const statuses: Bill['status'][] = ['issued', 'paid', 'partial_paid', 'overdue', 'paid', 'issued'];
+    const status = statuses[i];
+    let paidAmount = 0;
+    if (status === 'paid') {
+      paidAmount = totalAmount;
+    } else if (status === 'partial_paid') {
+      paidAmount = Math.floor(totalAmount * 0.5);
+    }
+
+    const items: BillItem[] = [
+      {
+        id: `bi-${i}-1`,
+        billId: `b${i + 1}`,
+        itemType: 'storage',
+        itemName: '档案寄存费',
+        quantity: storageQty,
+        unit: storageUnit,
+        unitPrice: storagePrice,
+        amount: storageFee,
+        remark: `按${c.feeBasis === 'box' ? '盒' : c.feeBasis === 'volume' ? '体积' : '重量'}计费`,
+      },
+      {
+        id: `bi-${i}-2`,
+        billId: `b${i + 1}`,
+        itemType: 'access',
+        itemName: '调阅服务费',
+        quantity: custAccessions.length,
+        unit: '次',
+        unitPrice: c.accessFeePerTime,
+        amount: accessFee,
+      },
+    ];
+
+    if (overdueFee > 0) {
+      items.push({
+        id: `bi-${i}-3`,
+        billId: `b${i + 1}`,
+        itemType: 'overdue',
+        itemName: '逾期归还费',
+        quantity: overdueDays,
+        unit: '天',
+        unitPrice: c.overdueFeePerDay,
+        amount: overdueFee,
+        remark: `${overdues.length}笔调阅逾期`,
+      });
+    }
+
+    if (destructionFee > 0) {
+      items.push({
+        id: `bi-${i}-4`,
+        billId: `b${i + 1}`,
+        itemType: 'destruction',
+        itemName: '销毁服务费',
+        quantity: custDestructions.length,
+        unit: '件',
+        unitPrice: c.destructionFeePerItem,
+        amount: destructionFee,
+      });
+    }
+
+    if (manualServiceFee > 0) {
+      items.push({
+        id: `bi-${i}-5`,
+        billId: `b${i + 1}`,
+        itemType: 'manual',
+        itemName: '人工服务费',
+        quantity: Math.floor(manualServiceFee / c.manualServiceFeePerHour),
+        unit: '小时',
+        unitPrice: c.manualServiceFeePerHour,
+        amount: manualServiceFee,
+      });
+    }
+
+    if (totalAmount > subtotal) {
+      items.push({
+        id: `bi-${i}-6`,
+        billId: `b${i + 1}`,
+        itemType: 'storage',
+        itemName: '最低收费补足',
+        quantity: 1,
+        unit: '次',
+        unitPrice: totalAmount - subtotal,
+        amount: totalAmount - subtotal,
+        remark: `月最低收费 ¥${c.minimumChargePerMonth}`,
+      });
+    }
+
     list.push({
       id: `b${i + 1}`,
       billNo: `ZF${period.replace(/-/g, '')}${String(i + 1).padStart(3, '0')}`,
@@ -321,13 +458,31 @@ function buildBills(): Bill[] {
       period,
       storageFee,
       accessFee,
-      totalAmount: storageFee + accessFee,
+      overdueFee,
+      destructionFee,
+      manualServiceFee,
+      totalAmount,
+      paidAmount,
       status,
       issueDate: fmt(addDays(today, -5)),
-      dueDate: fmt(addDays(today, 10)),
-      paidDate: status === 'paid' ? fmt(addDays(today, -2)) : undefined,
+      dueDate: fmt(addDays(today, status === 'overdue' ? -5 : 10)),
+      paidDate: status === 'paid' ? fmt(addDays(today, -2)) : status === 'partial_paid' ? fmt(addDays(today, -1)) : undefined,
+      items,
     });
   });
   return list;
 }
 export const mockBills: Bill[] = buildBills();
+
+export const mockPaymentRecords: PaymentRecord[] = [
+  { id: 'pr1', billId: 'b2', billNo: mockBills[1]?.billNo || 'ZF202606002', customerId: 'c2', customerName: '恒信医疗科技股份有限公司', amount: mockBills[1]?.totalAmount || 0, paymentDate: fmt(addDays(today, -2)), paymentMethod: '银行转账', createdAt: fmt(addDays(today, -2)) },
+  { id: 'pr2', billId: 'b5', billNo: mockBills[4]?.billNo || 'ZF202606005', customerId: 'c5', customerName: '蓝图工程设计研究院', amount: mockBills[4]?.totalAmount || 0, paymentDate: fmt(addDays(today, -3)), paymentMethod: '电子承兑', createdAt: fmt(addDays(today, -3)) },
+  { id: 'pr3', billId: 'b3', billNo: mockBills[2]?.billNo || 'ZF202606003', customerId: 'c3', customerName: '金鼎财务管理咨询有限公司', amount: Math.floor((mockBills[2]?.totalAmount || 0) * 0.5), paymentDate: fmt(addDays(today, -1)), paymentMethod: '银行转账', remark: '首期付款', createdAt: fmt(addDays(today, -1)) },
+];
+
+export const mockExportTasks: ExportTask[] = [
+  { id: 'exp1', type: 'archive_list', typeName: '档案清单', status: 'completed', createdAt: fmt(addDays(today, -3)), completedAt: fmt(addDays(today, -3)), fileSize: '2.4MB', params: { format: 'csv' } },
+  { id: 'exp2', type: 'customer_list', typeName: '客户清单', status: 'completed', createdAt: fmt(addDays(today, -5)), completedAt: fmt(addDays(today, -5)), fileSize: '128KB', params: { format: 'csv' } },
+  { id: 'exp3', type: 'accession_records', typeName: '调阅记录', status: 'completed', createdAt: fmt(addDays(today, -2)), completedAt: fmt(addDays(today, -2)), fileSize: '856KB', params: { format: 'csv', period: '2026-01' } },
+  { id: 'exp4', type: 'bill_details', typeName: '账单明细', status: 'processing', createdAt: fmt(addDays(today, 0)), params: { format: 'csv', period: '2026-06' } },
+];

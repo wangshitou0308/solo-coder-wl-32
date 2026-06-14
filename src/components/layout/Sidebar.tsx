@@ -14,19 +14,62 @@ import {
   ChevronRight,
   Building2,
   LogOut,
+  Settings,
+  DollarSign,
+  BarChart3,
+  Download,
+  TrendingUp,
+  PieChart,
+  Package,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const navItems = [
-  { to: '/', label: '数据看板', icon: LayoutDashboard, exact: true },
-  { to: '/archives', label: '档案入库', icon: Archive },
-  { to: '/warehouses', label: '库房管理', icon: Warehouse },
-  { to: '/accessions', label: '调阅服务', icon: FileSearch },
-  { to: '/inventory', label: '盘点管理', icon: ClipboardList },
-  { to: '/destruction', label: '销毁管理', icon: Trash2 },
-  { to: '/contracts', label: '合同管理', icon: FileText },
-  { to: '/billing', label: '账单管理', icon: Receipt },
-  { to: '/customers', label: '客户管理', icon: Users },
+const navGroups = [
+  {
+    label: '运营概览',
+    items: [
+      { to: '/', label: '数据看板', icon: LayoutDashboard, exact: true },
+    ],
+  },
+  {
+    label: '档案管理',
+    items: [
+      { to: '/archives', label: '档案入库', icon: Archive },
+      { to: '/warehouses', label: '库房管理', icon: Warehouse },
+      { to: '/accessions', label: '调阅服务', icon: FileSearch },
+      { to: '/inventory', label: '盘点管理', icon: ClipboardList },
+      { to: '/destruction', label: '销毁管理', icon: Trash2 },
+    ],
+  },
+  {
+    label: '合同与客户',
+    items: [
+      { to: '/contracts', label: '合同管理', icon: FileText },
+      { to: '/customers', label: '客户管理', icon: Users },
+    ],
+  },
+  {
+    label: '计费管理',
+    items: [
+      { to: '/billing/fee-standards', label: '费用标准', icon: Settings },
+      { to: '/billing', label: '账单管理', icon: Receipt },
+      { to: '/billing/receivables', label: '应收账款', icon: DollarSign },
+    ],
+  },
+  {
+    label: '数据分析',
+    items: [
+      { to: '/analytics/customers', label: '客户分析', icon: TrendingUp },
+      { to: '/analytics/archives', label: '档案分析', icon: PieChart },
+      { to: '/analytics/warehouses', label: '库房分析', icon: Package },
+    ],
+  },
+  {
+    label: '系统工具',
+    items: [
+      { to: '/export', label: '导出中心', icon: Download },
+    ],
+  },
 ];
 
 export default function Sidebar() {
@@ -54,26 +97,35 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto scrollbar-thin py-3 px-2 space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to);
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={cn(
-                'sidebar-link',
-                isActive && 'sidebar-link-active',
-                collapsed && 'justify-center px-2',
-              )}
-              title={item.label}
-            >
-              <Icon className="w-5 h-5 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </NavLink>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto scrollbar-thin py-3 px-2 space-y-3">
+        {navGroups.map((group, groupIdx) => (
+          <div key={groupIdx} className="space-y-1">
+            {!collapsed && group.label && (
+              <div className="px-3 pt-1 pb-1.5 text-[10px] font-semibold text-primary-300 uppercase tracking-wider">
+                {group.label}
+              </div>
+            )}
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const isActive = item.exact ? location.pathname === item.to : location.pathname.startsWith(item.to);
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={cn(
+                    'sidebar-link',
+                    isActive && 'sidebar-link-active',
+                    collapsed && 'justify-center px-2',
+                  )}
+                  title={item.label}
+                >
+                  <Icon className="w-5 h-5 shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </NavLink>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div className="border-t border-primary-700/50 p-2">

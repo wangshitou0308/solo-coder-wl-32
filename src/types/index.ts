@@ -9,11 +9,15 @@ export type TaskStatus = 'pending' | 'in_progress' | 'completed';
 export type TaskType = 'by_warehouse' | 'by_customer' | 'by_position';
 export type DestructionStatus = 'pending_customer' | 'pending_manager' | 'approved' | 'executed' | 'rejected';
 export type DestroyMethod = 'shred' | 'burn' | 'pulping' | 'other';
-export type BillStatus = 'pending' | 'issued' | 'paid' | 'overdue';
+export type BillStatus = 'pending' | 'issued' | 'partial_paid' | 'paid' | 'overdue';
 export type ContractStatus = 'active' | 'expired' | 'terminated';
 export type WarehouseStatus = 'normal' | 'warning' | 'full';
 export type ArchiveTypeCategory = 'paper' | 'film' | 'mixed';
 export type RiskLevel = 'low' | 'medium' | 'high';
+export type FeeBasis = 'box' | 'volume' | 'weight';
+export type BillItemType = 'storage' | 'access' | 'overdue' | 'destruction' | 'manual';
+export type ExportType = 'archive_list' | 'customer_list' | 'accession_records' | 'inventory_report' | 'destruction_certificate' | 'bill_details';
+export type ExportStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 export interface Customer {
   id: string;
@@ -24,6 +28,64 @@ export interface Customer {
   createdAt: string;
   archiveCount: number;
   accessCount: number;
+}
+
+export interface FeeStandard {
+  id: string;
+  name: string;
+  customerId?: string;
+  customerName?: string;
+  contractId?: string;
+  contractNo?: string;
+  feeBasis: FeeBasis;
+  feePerBox: number;
+  feePerVolume: number;
+  feePerWeight: number;
+  accessFeePerTime: number;
+  overdueFeePerDay: number;
+  destructionFeePerItem: number;
+  manualServiceFeePerHour: number;
+  minimumChargePerMonth: number;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentRecord {
+  id: string;
+  billId: string;
+  billNo: string;
+  customerId: string;
+  customerName: string;
+  amount: number;
+  paymentDate: string;
+  paymentMethod: string;
+  remark?: string;
+  createdAt: string;
+}
+
+export interface BillItem {
+  id: string;
+  billId: string;
+  itemType: BillItemType;
+  itemName: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  amount: number;
+  remark?: string;
+}
+
+export interface ExportTask {
+  id: string;
+  type: ExportType;
+  typeName: string;
+  status: ExportStatus;
+  createdAt: string;
+  completedAt?: string;
+  fileSize?: string;
+  downloadUrl?: string;
+  params: Record<string, string>;
 }
 
 export interface Contract {
@@ -38,6 +100,13 @@ export interface Contract {
   feePerVolume: number;
   feePerWeight: number;
   accessFeePerTime: number;
+  overdueFeePerDay: number;
+  destructionFeePerItem: number;
+  manualServiceFeePerHour: number;
+  minimumChargePerMonth: number;
+  feeBasis: FeeBasis;
+  feeStandardId?: string;
+  originalContractId?: string;
   status: ContractStatus;
 }
 
@@ -190,11 +259,16 @@ export interface Bill {
   period: string;
   storageFee: number;
   accessFee: number;
+  overdueFee: number;
+  destructionFee: number;
+  manualServiceFee: number;
   totalAmount: number;
+  paidAmount: number;
   status: BillStatus;
   issueDate: string;
   dueDate: string;
   paidDate?: string;
+  items: BillItem[];
 }
 
 export interface AppState {
@@ -208,6 +282,9 @@ export interface AppState {
   inventoryTasks: InventoryTask[];
   destructions: DestructionRecord[];
   bills: Bill[];
+  feeStandards: FeeStandard[];
+  paymentRecords: PaymentRecord[];
+  exportTasks: ExportTask[];
 
   addCustomer: (data: Omit<Customer, 'id' | 'createdAt' | 'archiveCount' | 'accessCount'>) => void;
   addArchive: (data: Omit<Archive, 'id' | 'barcode'>) => void;
@@ -227,8 +304,14 @@ export interface AppState {
   executeDestruction: (id: string, executeDate: string) => void;
   addEnvironmentRecord: (data: Omit<EnvironmentRecord, 'id' | 'isAbnormal' | 'riskLevel'>) => void;
   generateBill: (period: string) => void;
-  payBill: (id: string) => void;
+  payBill: (id: string, amount: number, paymentMethod: string, remark?: string) => void;
   moveArchive: (archiveId: string, newPositionId: string) => void;
+  addFeeStandard: (data: Omit<FeeStandard, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateFeeStandard: (id: string, data: Partial<FeeStandard>) => void;
+  deleteFeeStandard: (id: string) => void;
+  renewContract: (contractId: string, newStartDate: string, newEndDate: string) => Contract | undefined;
+  createExportTask: (type: ExportType, params: Record<string, string>) => void;
+  downloadExport: (taskId: string) => void;
 }
 
 export const ARCHIVE_TYPE_MAP: Record<ArchiveType, string> = {
@@ -254,4 +337,42 @@ export const RETENTION_MAP: Record<RetentionPeriod, string> = {
   '10years': '10年',
   '5years': '5年',
   custom: '自定义',
+};
+
+export const FEE_BASIS_MAP: Record<FeeBasis, string> = {
+  box: '按盒计费',
+  volume: '按体积计费',
+  weight: '按重量计费',
+};
+
+export const BILL_ITEM_TYPE_MAP: Record<BillItemType, string> = {
+  storage: '寄存费',
+  access: '调阅费',
+  overdue: '逾期费',
+  destruction: '销毁服务费',
+  manual: '人工服务费',
+};
+
+export const BILL_STATUS_MAP: Record<BillStatus, string> = {
+  pending: '待生成',
+  issued: '已开票',
+  partial_paid: '部分收款',
+  paid: '已收款',
+  overdue: '已逾期',
+};
+
+export const EXPORT_TYPE_MAP: Record<ExportType, string> = {
+  archive_list: '档案清单',
+  customer_list: '客户清单',
+  accession_records: '调阅记录',
+  inventory_report: '盘点报告',
+  destruction_certificate: '销毁证明',
+  bill_details: '账单明细',
+};
+
+export const EXPORT_STATUS_MAP: Record<ExportStatus, string> = {
+  pending: '等待中',
+  processing: '处理中',
+  completed: '已完成',
+  failed: '失败',
 };

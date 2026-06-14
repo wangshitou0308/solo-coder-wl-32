@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { AppState, Archive, ArchiveStatus, Accession, AccessionItem, InventoryTask, InventoryStatus, DestructionRecord, EnvironmentRecord, Bill, Customer, ShelfPosition } from '@/types';
-import { mockCustomers, mockContracts, mockWarehouses, mockShelfPositions, mockArchives, mockEnvRecords, mockAccessions, mockInventoryTasks, mockDestructions, mockBills } from '@/data/mockData';
+import type { AppState, Archive, ArchiveStatus, Accession, AccessionItem, InventoryTask, InventoryStatus, DestructionRecord, EnvironmentRecord, Bill, Customer, ShelfPosition, FeeStandard, PaymentRecord, ExportTask, BillItem, ExportType, Contract } from '@/types';
+import { EXPORT_TYPE_MAP } from '@/types';
+import { mockCustomers, mockContracts, mockWarehouses, mockShelfPositions, mockArchives, mockEnvRecords, mockAccessions, mockInventoryTasks, mockDestructions, mockBills, mockFeeStandards, mockPaymentRecords, mockExportTasks } from '@/data/mockData';
 
 const genId = () => Math.random().toString(36).slice(2, 10);
 const genBarcode = () => 'ARC' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
@@ -20,6 +21,9 @@ export const useAppStore = create<AppState>()(
       inventoryTasks: mockInventoryTasks,
       destructions: mockDestructions,
       bills: mockBills,
+      feeStandards: mockFeeStandards,
+      paymentRecords: mockPaymentRecords,
+      exportTasks: mockExportTasks,
 
       addCustomer: (data) => set((s) => ({
         customers: [...s.customers, {
@@ -282,19 +286,81 @@ export const useAppStore = create<AppState>()(
       },
 
       generateBill: (period) => {
-        const { contracts, archives, accessions, bills } = get();
+        const { contracts, archives, accessions, bills, destructions } = get();
         const existingContractIds = new Set(
           bills.filter((b) => b.period === period).map((b) => b.contractId),
         );
         const remainingContracts = contracts.filter((c) => !existingContractIds.has(c.id));
         if (remainingContracts.length === 0) return;
+        const today = new Date();
+        const fmt = (d: Date) => d.toISOString().slice(0, 10);
         const newBills: Bill[] = remainingContracts.map((c) => {
           const custArchives = archives.filter((a) => a.customerId === c.customerId && a.status !== 'destroyed');
           const custAccessions = accessions.filter((a) => a.customerId === c.customerId);
-          const storageFee = custArchives.length * c.feePerBox;
+          const custDestructions = destructions.filter((d) => d.customerId === c.customerId && d.status === 'executed');
+          const overdues = accessions.filter((a) => a.customerId === c.customerId && (a.status === 'overdue' || (a.status !== 'returned' && a.status !== 'pending' && a.status !== 'rejected' && a.expectedReturnDate < fmt(today))));
+
+          const archiveCount = custArchives.length;
+          const totalVolume = custArchives.reduce((sum, a) => sum + a.volume, 0);
+          const totalWeight = custArchives.reduce((sum, a) => sum + a.weight, 0);
+
+          let storageFee = 0;
+          let storageUnit = '';
+          let storageQty = 0;
+          let storagePrice = 0;
+
+          if (c.feeBasis === 'box') {
+            storageQty = archiveCount;
+            storageUnit = '盒';
+            storagePrice = c.feePerBox;
+            storageFee = Math.floor(archiveCount * c.feePerBox);
+          } else if (c.feeBasis === 'volume') {
+            storageQty = +totalVolume.toFixed(2);
+            storageUnit = 'm³';
+            storagePrice = c.feePerVolume;
+            storageFee = Math.floor(totalVolume * c.feePerVolume);
+          } else {
+            storageQty = +totalWeight.toFixed(1);
+            storageUnit = 'kg';
+            storagePrice = c.feePerWeight;
+            storageFee = Math.floor(totalWeight * c.feePerWeight);
+          }
+
           const accessFee = custAccessions.length * c.accessFeePerTime;
+          const overdueDays = overdues.reduce((sum, a) => {
+            const expected = new Date(a.expectedReturnDate);
+            const diff = Math.ceil((today.getTime() - expected.getTime()) / 86400000);
+            return sum + Math.max(0, diff);
+          }, 0);
+          const overdueFee = overdueDays * c.overdueFeePerDay;
+          const destructionFee = custDestructions.length * c.destructionFeePerItem;
+          const manualServiceFee = Math.floor(Math.random() * 3) * c.manualServiceFeePerHour;
+          const subtotal = storageFee + accessFee + overdueFee + destructionFee + manualServiceFee;
+          const totalAmount = Math.max(subtotal, c.minimumChargePerMonth);
+
+          const items: BillItem[] = [
+            { id: `bi-${genId()}-1`, billId: '', itemType: 'storage', itemName: '档案寄存费', quantity: storageQty, unit: storageUnit, unitPrice: storagePrice, amount: storageFee, remark: `按${c.feeBasis === 'box' ? '盒' : c.feeBasis === 'volume' ? '体积' : '重量'}计费` },
+            { id: `bi-${genId()}-2`, billId: '', itemType: 'access', itemName: '调阅服务费', quantity: custAccessions.length, unit: '次', unitPrice: c.accessFeePerTime, amount: accessFee },
+          ];
+
+          if (overdueFee > 0) {
+            items.push({ id: `bi-${genId()}-3`, billId: '', itemType: 'overdue', itemName: '逾期归还费', quantity: overdueDays, unit: '天', unitPrice: c.overdueFeePerDay, amount: overdueFee, remark: `${overdues.length}笔调阅逾期` });
+          }
+          if (destructionFee > 0) {
+            items.push({ id: `bi-${genId()}-4`, billId: '', itemType: 'destruction', itemName: '销毁服务费', quantity: custDestructions.length, unit: '件', unitPrice: c.destructionFeePerItem, amount: destructionFee });
+          }
+          if (manualServiceFee > 0) {
+            items.push({ id: `bi-${genId()}-5`, billId: '', itemType: 'manual', itemName: '人工服务费', quantity: Math.floor(manualServiceFee / c.manualServiceFeePerHour), unit: '小时', unitPrice: c.manualServiceFeePerHour, amount: manualServiceFee });
+          }
+          if (totalAmount > subtotal) {
+            items.push({ id: `bi-${genId()}-6`, billId: '', itemType: 'storage', itemName: '最低收费补足', quantity: 1, unit: '次', unitPrice: totalAmount - subtotal, amount: totalAmount - subtotal, remark: `月最低收费 ¥${c.minimumChargePerMonth}` });
+          }
+
+          const billId = 'b' + genId();
+          items.forEach((item) => { item.billId = billId; });
+
           return {
-            id: 'b' + genId(),
+            id: billId,
             billNo: `ZF${period.replace(/-/g, '')}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
             contractId: c.id,
             customerId: c.customerId,
@@ -302,18 +368,165 @@ export const useAppStore = create<AppState>()(
             period,
             storageFee,
             accessFee,
-            totalAmount: storageFee + accessFee,
-            status: 'issued',
+            overdueFee,
+            destructionFee,
+            manualServiceFee,
+            totalAmount,
+            paidAmount: 0,
+            status: 'issued' as const,
             issueDate: todayStr(),
             dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+            items,
           };
         });
         set((s) => ({ bills: [...s.bills, ...newBills] }));
       },
 
-      payBill: (id) => set((s) => ({
-        bills: s.bills.map((b) => b.id === id ? { ...b, status: 'paid', paidDate: todayStr() } : b),
+      payBill: (id, amount, paymentMethod, remark) => {
+        const { bills } = get();
+        const bill = bills.find((b) => b.id === id);
+        if (!bill) return;
+        const newPaidAmount = bill.paidAmount + amount;
+        let newStatus: Bill['status'] = bill.status;
+        if (newPaidAmount >= bill.totalAmount) {
+          newStatus = 'paid';
+        } else if (newPaidAmount > 0) {
+          newStatus = 'partial_paid';
+        }
+        const paymentRecord: PaymentRecord = {
+          id: 'pr' + genId(),
+          billId: id,
+          billNo: bill.billNo,
+          customerId: bill.customerId,
+          customerName: bill.customerName,
+          amount,
+          paymentDate: todayStr(),
+          paymentMethod,
+          remark,
+          createdAt: todayStr(),
+        };
+        set((s) => ({
+          bills: s.bills.map((b) => b.id === id ? { ...b, paidAmount: newPaidAmount, status: newStatus, paidDate: newStatus === 'paid' ? todayStr() : b.paidDate } : b),
+          paymentRecords: [...s.paymentRecords, paymentRecord],
+        }));
+      },
+
+      addFeeStandard: (data) => set((s) => ({
+        feeStandards: [...s.feeStandards, {
+          ...data,
+          id: 'fs' + genId(),
+          createdAt: todayStr(),
+          updatedAt: todayStr(),
+        } as FeeStandard],
       })),
+
+      updateFeeStandard: (id, data) => set((s) => ({
+        feeStandards: s.feeStandards.map((fs) => fs.id === id ? { ...fs, ...data, updatedAt: todayStr() } : fs),
+      })),
+
+      deleteFeeStandard: (id) => set((s) => ({
+        feeStandards: s.feeStandards.filter((fs) => fs.id !== id),
+      })),
+
+      renewContract: (contractId, newStartDate, newEndDate) => {
+        const { contracts } = get();
+        const original = contracts.find((c) => c.id === contractId);
+        if (!original) return undefined;
+        const year = new Date(newStartDate).getFullYear();
+        const maxNo = Math.max(0, ...contracts.filter((c) => c.contractNo.startsWith(`HT-${year}`)).map((c) => parseInt(c.contractNo.slice(-3)) || 0));
+        const newContract: Contract = {
+          ...original,
+          id: 'ct' + genId(),
+          contractNo: `HT-${year}-${String(maxNo + 1).padStart(3, '0')}`,
+          startDate: newStartDate,
+          endDate: newEndDate,
+          originalContractId: original.id,
+          status: 'active',
+        };
+        set((s) => ({ contracts: [...s.contracts, newContract] }));
+        return newContract;
+      },
+
+      createExportTask: (type, params) => {
+        const typeName = EXPORT_TYPE_MAP[type] || type;
+        const task: ExportTask = {
+          id: 'exp' + genId(),
+          type,
+          typeName,
+          status: 'pending',
+          createdAt: todayStr(),
+          params,
+        };
+        set((s) => ({ exportTasks: [...s.exportTasks, task] }));
+        setTimeout(() => {
+          set((s) => ({
+            exportTasks: s.exportTasks.map((t) => t.id === task.id ? { ...t, status: 'processing' as const } : t),
+          }));
+        }, 500);
+        setTimeout(() => {
+          set((s) => ({
+            exportTasks: s.exportTasks.map((t) => t.id === task.id ? { ...t, status: 'completed' as const, completedAt: todayStr(), fileSize: `${(Math.random() * 5 + 0.1).toFixed(1)}MB` } : t),
+          }));
+        }, 2000);
+      },
+
+      downloadExport: (taskId) => {
+        const { exportTasks, archives, customers, accessions, inventoryTasks, destructions, bills } = get();
+        const task = exportTasks.find((t) => t.id === taskId);
+        if (!task || task.status !== 'completed') return;
+
+        let content = '';
+        let filename = `${task.typeName}_${todayStr()}.csv`;
+
+        switch (task.type) {
+          case 'archive_list':
+            content = '档案编号,条码,客户名称,档案类型,标题,盒号,体积,重量,保管期限,存放位置,状态\n';
+            archives.forEach((a) => {
+              content += `${a.id},${a.barcode},${a.customerName},${a.typeName},${a.title},${a.boxNo},${a.volume},${a.weight},${a.retentionPeriod},${a.positionCode || ''},${a.status}\n`;
+            });
+            break;
+          case 'customer_list':
+            content = '客户编号,客户名称,联系人,联系电话,地址,创建日期,档案数量,调阅次数\n';
+            customers.forEach((c) => {
+              content += `${c.id},${c.name},${c.contactPerson},${c.contactPhone},${c.address},${c.createdAt},${c.archiveCount},${c.accessCount}\n`;
+            });
+            break;
+          case 'accession_records':
+            content = '调阅编号,客户名称,申请人,用途,调阅时间,预计归还,实际归还,状态\n';
+            accessions.forEach((a) => {
+              content += `${a.accessionNo},${a.customerName},${a.applicant},${a.purposeName},${a.startTime},${a.expectedReturnDate},${a.actualReturnDate || ''},${a.status}\n`;
+            });
+            break;
+          case 'inventory_report':
+            content = '任务编号,任务名称,类型,总数量,已盘点,正常,缺失,错放,损坏,状态\n';
+            inventoryTasks.forEach((t) => {
+              content += `${t.taskNo},${t.name},${t.type},${t.totalCount},${t.checkedCount},${t.normalCount},${t.missingCount},${t.misplacedCount},${t.damagedCount},${t.status}\n`;
+            });
+            break;
+          case 'destruction_certificate':
+            content = '销毁编号,档案条码,标题,客户名称,申请日期,客户审批,经理审批,执行日期,销毁方式\n';
+            destructions.forEach((d) => {
+              content += `${d.id},${d.barcode},${d.title},${d.customerName},${d.applyDate},${d.customerApproved ? '已通过' : '待审批'},${d.managerApproved ? '已通过' : '待审批'},${d.executeDate || ''},${d.destroyMethod}\n`;
+            });
+            break;
+          case 'bill_details':
+            content = '账单编号,客户名称,账期,寄存费,调阅费,逾期费,销毁服务费,人工服务费,合计,已收款,状态\n';
+            bills.forEach((b) => {
+              content += `${b.billNo},${b.customerName},${b.period},${b.storageFee},${b.accessFee},${b.overdueFee || 0},${b.destructionFee || 0},${b.manualServiceFee || 0},${b.totalAmount},${b.paidAmount || 0},${b.status}\n`;
+            });
+            break;
+        }
+
+        const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      },
 
       moveArchive: (archiveId, newPositionId) => {
         const { archives, shelfPositions, warehouses } = get();
@@ -360,6 +573,9 @@ export const useAppStore = create<AppState>()(
           inventoryTasks: p.inventoryTasks && p.inventoryTasks.length > 0 ? p.inventoryTasks : currentState.inventoryTasks,
           destructions: p.destructions && p.destructions.length > 0 ? p.destructions : currentState.destructions,
           bills: p.bills && p.bills.length > 0 ? p.bills : currentState.bills,
+          feeStandards: p.feeStandards && p.feeStandards.length > 0 ? p.feeStandards : currentState.feeStandards,
+          paymentRecords: p.paymentRecords && p.paymentRecords.length > 0 ? p.paymentRecords : currentState.paymentRecords,
+          exportTasks: p.exportTasks && p.exportTasks.length > 0 ? p.exportTasks : currentState.exportTasks,
         };
       },
     },

@@ -13,7 +13,13 @@ import InventoryExecute from "@/pages/inventory/InventoryExecute";
 import DestructionList from "@/pages/destruction/DestructionList";
 import ContractList from "@/pages/contracts/ContractList";
 import BillingList from "@/pages/billing/BillingList";
+import FeeStandardList from "@/pages/billing/FeeStandardList";
+import ReceivablesDashboard from "@/pages/billing/ReceivablesDashboard";
 import CustomerList from "@/pages/customers/CustomerList";
+import CustomerAnalytics from "@/pages/analytics/CustomerAnalytics";
+import ArchiveAnalytics from "@/pages/analytics/ArchiveAnalytics";
+import WarehouseAnalytics from "@/pages/analytics/WarehouseAnalytics";
+import ExportCenter from "@/pages/ExportCenter";
 
 export default function App() {
   return (
@@ -34,7 +40,13 @@ export default function App() {
           <Route path="/destruction" element={<DestructionList />} />
           <Route path="/contracts" element={<ContractList />} />
           <Route path="/billing" element={<BillingList />} />
+          <Route path="/billing/fee-standards" element={<FeeStandardList />} />
+          <Route path="/billing/receivables" element={<ReceivablesDashboard />} />
           <Route path="/customers" element={<CustomerList />} />
+          <Route path="/analytics/customers" element={<CustomerAnalytics />} />
+          <Route path="/analytics/archives" element={<ArchiveAnalytics />} />
+          <Route path="/analytics/warehouses" element={<WarehouseAnalytics />} />
+          <Route path="/export" element={<ExportCenter />} />
           <Route path="*" element={<Dashboard />} />
         </Route>
       </Routes>
